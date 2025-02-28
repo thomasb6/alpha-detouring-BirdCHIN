@@ -6,7 +6,7 @@ import plotly.express as px
 from dash import Dash, dcc, html, Input, Output, no_update, callback
 from skimage import io
 
-app = Dash()
+app = Dash(__name__)
 server = app.server
 
 folder_path = '/Users/thomasfoulonneau/PycharmProjects/alpha-detouring-BirdCHIN/optos_jpg'
