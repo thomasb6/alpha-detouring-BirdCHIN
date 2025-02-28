@@ -1,11 +1,9 @@
-from flask import Flask
-import dash
-from dash import dcc, html
+import json
 import os
+
+import dash
 import plotly.express as px
 from dash import Dash, dcc, html, Input, Output, no_update, callback
-from skimage import data
-import json
 from skimage import io
 
 app = Dash()

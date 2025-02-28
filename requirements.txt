@@ -2,3 +2,4 @@ plotly~=6.0.0
 dash~=2.18.2
 scikit-image~=0.24.0
 gunicorn==19.7.1
+flask~=3.0.3
