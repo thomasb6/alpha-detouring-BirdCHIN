@@ -19,6 +19,9 @@ config = {
 
 # Build App
 app = Dash()
+
+server = app.server
+
 app.layout = html.Div(
     [
         html.H4("Draw a shape, then modify it"),
