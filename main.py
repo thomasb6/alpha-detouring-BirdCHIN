@@ -6,6 +6,7 @@ from dash import Dash, dcc, html, Input, Output, no_update, callback
 from skimage import io
 import io as io_buffer
 from PIL import Image
+import os 
 
 # Configuration GitHub (dépôt public)
 REPO_OWNER = "thomasb6"
