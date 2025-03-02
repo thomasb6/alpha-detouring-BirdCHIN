@@ -13,13 +13,19 @@ REPO_NAME = "alpha-detouring-BirdCHIN"
 FOLDER_PATH = "optos_jpg"
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FOLDER_PATH}"
 
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # Récupérer le token depuis Render
+
 def get_filenames():
-    response = requests.get(GITHUB_API_URL)
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    response = requests.get(GITHUB_API_URL, headers=headers)
+    print("GitHub API Response:", response.status_code, response.text)  # Debug
     if response.status_code == 200:
         return [file["name"] for file in response.json() if file["type"] == "file"]
-    else:
-        print("Erreur lors de la récupération des fichiers :", response.text)
-        return []
+    return []
+
 
 def get_image_url(filename):
     return f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{FOLDER_PATH}/{filename}"
