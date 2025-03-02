@@ -1,18 +1,33 @@
-from flask import Flask
+import json
+import requests
 import dash
-from dash import dcc, html
-import os
 import plotly.express as px
 from dash import Dash, dcc, html, Input, Output, no_update, callback
-from skimage import data
-import json
 from skimage import io
+import io as io_buffer
+from PIL import Image
 
-app = Dash()
+# Configuration GitHub (dépôt public)
+REPO_OWNER = "thomasb6"
+REPO_NAME = "alpha-detouring-BirdCHIN"
+FOLDER_PATH = "optos_jpg"
+GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FOLDER_PATH}"
+
+def get_filenames():
+    response = requests.get(GITHUB_API_URL)
+    if response.status_code == 200:
+        return [file["name"] for file in response.json() if file["type"] == "file"]
+    else:
+        print("Erreur lors de la récupération des fichiers :", response.text)
+        return []
+
+def get_image_url(filename):
+    return f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{FOLDER_PATH}/{filename}"
+
+app = Dash(__name__)
 server = app.server
 
-folder_path = '/Users/thomasfoulonneau/PycharmProjects/alpha-detouring-BirdCHIN/optos_jpg'
-filenames = os.listdir(folder_path)
+filenames = get_filenames()
 
 # Layout Dash
 app.layout = html.Div([
@@ -23,16 +38,18 @@ app.layout = html.Div([
     ),
     html.Div(id='output-text')
 ])
-# Callback pour afficher le fichier sélectionné
+
 @app.callback(
-    dash.Output('output-text', 'children'),
-    [dash.Input('file-dropdown', 'value')]
+    Output('output-text', 'children'),
+    [Input('file-dropdown', 'value')]
 )
 def display_selected_file(selected_filename):
     if selected_filename:
         try:
-            img = io.imread(os.path.join(folder_path, selected_filename))
-            fig = px.imshow(img)
+            image_url = get_image_url(selected_filename)
+            response = requests.get(image_url)
+            image = Image.open(io_buffer.BytesIO(response.content))
+            fig = px.imshow(image)
             fig.update_layout(dragmode="drawclosedpath")
             config = {
                 "modeBarButtonsToAdd": [
@@ -47,14 +64,13 @@ def display_selected_file(selected_filename):
             return html.Div([
                 html.H4("Vous pouvez contourer le fichier"),
                 dcc.Graph(id="fig-image", figure=fig, config=config),
-                dcc.Markdown("Characteristics de la zone sélectionnée"),
+                dcc.Markdown("Caractéristiques de la zone sélectionnée"),
                 html.Pre(id="annotations-pre")
             ])
         except Exception as e:
             return f'Error loading file: {str(e)}'
     return 'No file selected'
 
-# Callback to update annotations
 @callback(
     Output("annotations-pre", "children"),
     Input("fig-image", "relayoutData"),
@@ -66,6 +82,5 @@ def on_new_annotation(relayout_data):
             return json.dumps(f'{key}: {relayout_data[key]}', indent=2)
     return no_update
 
-# Run the app
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run_server(debug=False, host="0.0.0.0", port=8080)
