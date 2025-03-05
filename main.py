@@ -14,7 +14,7 @@ REPO_NAME = "alpha-detouring-BirdCHIN"
 FOLDER_PATH = "optos_jpg"
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FOLDER_PATH}"
 
-GITHUB_TOKEN = "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"  # Récupérer le token depuis Render
+GITHUB_TOKEN = "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"  # Récupérer le token depuis Render
 
 
 def get_filenames():
@@ -91,4 +91,4 @@ def on_new_annotation(relayout_data):
     return no_update
 
 if __name__ == '__main__':
-    app.run_server(debug=True, host="0.0.0.0", port=8080)
+    app.run_server(debug=True)
