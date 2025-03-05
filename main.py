@@ -17,7 +17,6 @@ GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/content
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 print(f"GITHUB_TOKEN Loaded: {GITHUB_TOKEN[:4]}********" if GITHUB_TOKEN else "GITHUB_TOKEN not loaded!")
 headers = {
-    "Authorization": f"token {GITHUB_TOKEN}",
     "Accept": "application/vnd.github.v3+json"
 }
 response = requests.get("https://api.github.com/user", headers=headers)
@@ -29,7 +28,6 @@ print("Response:", response.json())
 
 def get_filenames():
     headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
     response = requests.get(GITHUB_API_URL, headers=headers)
