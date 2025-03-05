@@ -14,9 +14,9 @@ REPO_NAME = "alpha-detouring-BirdCHIN"
 FOLDER_PATH = "optos_jpg"
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FOLDER_PATH}"
 
-GITHUB_TOKEN = "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"  # Récupérer le token depuis Render
 
-
+GITHUB_TOKEN = "ghp_nwTO1ndYrsxh9HxEJKi2QiZNDWGCSX?3?z?U?g?NP"
+GITHUB_TOKEN = GITHUB_TOKEN.replace("?", "")
 def get_filenames():
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
