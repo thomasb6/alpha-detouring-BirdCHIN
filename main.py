@@ -14,20 +14,12 @@ REPO_NAME = "alpha-detouring-BirdCHIN"
 FOLDER_PATH = "optos_jpg"
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FOLDER_PATH}"
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-print(f"GITHUB_TOKEN Loaded: {GITHUB_TOKEN[:4]}********" if GITHUB_TOKEN else "GITHUB_TOKEN not loaded!")
-headers = {
-    "Accept": "application/vnd.github.v3+json"
-}
-response = requests.get("https://api.github.com/user", headers=headers)
-print("Status Code:", response.status_code)
-print("Response:", response.json())
-response = requests.get(GITHUB_API_URL, headers=headers)
-print("Status Code:", response.status_code)
-print("Response:", response.json())
+GITHUB_TOKEN = "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"  # Récupérer le token depuis Render
+
 
 def get_filenames():
     headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
     response = requests.get(GITHUB_API_URL, headers=headers)
