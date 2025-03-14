@@ -73,7 +73,7 @@ app.layout = dbc.Container([
         html.H1([
             html.Span("Annotation"),
             html.Br(),
-            html.Span("Tâches Birdshot")
+            html.Span("Taches Birdshot")
         ]),
         html.P("VIsion tranformers for Birdshot Evaluation")
     ],
@@ -170,4 +170,4 @@ def update_area(relayout_data):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
