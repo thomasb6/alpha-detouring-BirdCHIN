@@ -1,20 +1,20 @@
-from dash import Dash, html, dcc, Input, Output
+from dash import Dash, html, dcc, Input, Output, State, ctx, ALL, exceptions
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
+import plotly.express as px
 import numpy as np
 import random
 import requests
 import io as io_buffer
 from PIL import Image
-import plotly.express as px
-import re  # Import de regex pour l'extraction des coordonnées
+import re
+import dash
 
-# Configuration GitHub (dépôt public)
+# Configuration GitHub
 REPO_OWNER = "thomasb6"
 REPO_NAME = "alpha-detouring-BirdCHIN"
 FOLDER_PATH = "optos_jpg"
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FOLDER_PATH}"
-
 GITHUB_TOKEN = "ghp_nwTO1ndYrsxh9HxEJKi2QiZNDWGCSX?3?z?U?g?NP"
 GITHUB_TOKEN = GITHUB_TOKEN.replace("?", "")
 
@@ -34,25 +34,25 @@ def get_image_url(filename):
     return f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{FOLDER_PATH}/{filename}"
 
 
-# Fonction pour calculer l'aire avec la formule de Shoelace
 def calculate_area(coords):
     if len(coords) < 3:
-        return 0  # Un polygone doit avoir au moins 3 points
+        return 0
     x, y = zip(*coords)
     return 0.5 * abs(sum(x[i] * y[i + 1] - x[i + 1] * y[i] for i in range(-1, len(coords) - 1)))
 
 
-# Scatter Plot initial (inchangé)
+# Figure de démarrage (affichée tant qu'aucun fichier n'est sélectionné)
 scatter_fig = go.Figure(
-    go.Scattergl(x=np.random.randn(1000),
-                 y=np.random.randn(1000),
-                 mode='markers',
-                 marker=dict(
-                     color=random.sample(['#ecf0f1'] * 500 +
-                                         ["#3498db"] * 500, 1000),
-                     line_width=1)
-                 ))
-
+    go.Scattergl(
+        x=np.random.randn(1000),
+        y=np.random.randn(1000),
+        mode='markers',
+        marker=dict(
+            color=random.sample(['#ecf0f1'] * 500 + ["#3498db"] * 500, 1000),
+            line_width=1
+        )
+    )
+)
 scatter_fig.update_layout(
     plot_bgcolor='#010103',
     width=790,
@@ -67,107 +67,216 @@ app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 server = app.server
 
 filenames = get_filenames()
+classification_options = ["tache", "plaque", "tache pigmentée", "tache pas sûre"]
 
 app.layout = dbc.Container([
-    html.Div([html.Div([
-        html.H1([
-            html.Span("Annotation"),
-            html.Br(),
-            html.Span("Taches Birdshot")
-        ]),
-        html.P("VIsion tranformers for Birdshot Evaluation")
-    ],
-        style={
-            "vertical-alignment": "top",
-            "height": 260
-        }),
+    html.Div([
+        html.Div([
+            html.H1([
+                html.Span("Annotation"),
+                html.Br(),
+                html.Span("Taches Birdshot")
+            ]),
+            html.P("Vision transformers for Birdshot Evaluation")
+        ], style={"vertical-align": "top", "height": 260}),
         html.Div([
             dcc.Dropdown(
                 id='file-dropdown',
                 options=[{'label': f, 'value': f} for f in filenames],
                 placeholder='Sélectionnez un fichier à analyser'
-            ), html.Div(id='output-text')],
-            style={
-                'margin-left': 5,
-                'margin-right': 5,
-            }),
-    ],
-        style={
-            'width': 340,
-            'margin-left': 35,
-            'margin-top': 35,
-            'margin-bottom': 35
-        }),
-    html.Div(
-        [html.Div(id='graph-container', style={'width': 990, 'height': 730}),
-         html.Div(id='output-area', style={'color': 'white', 'margin-top': '10px'})],
-        style={
-            'width': 990,
-            'margin-top': 35,
-            'margin-right': 35,
-            'margin-bottom': 35,
-            'display': 'flex'
-        })
+            ),
+            html.Br(),
+            dbc.Button("Réinitialiser les annotations", id="reset-button", color="danger", className="mb-2"),
+            html.Br(),
+            html.Label("Classification manuelle :"),
+            dbc.ButtonGroup([
+                dbc.Button(opt, id={"type": "classify-button", "index": opt}, color="secondary")
+                for opt in classification_options
+            ], vertical=True, className="mb-2"),
+            # Dropdown pour sélectionner une zone existante
+            dcc.Dropdown(
+                id="zone-selector",
+                options=[],
+                placeholder="Sélectionnez une zone",
+                style={"margin-top": "10px"}
+            ),
+            html.Br(),
+            # Champ caché pour les raccourcis clavier (ici non utilisé, mais conservé)
+            dcc.Input(id="key-capture", type="text",
+                      style={"opacity": 0, "position": "absolute"},
+                      autoFocus=True),
+            dcc.Store(id="stored-shapes", data=[]),
+            html.Div(id='output-text')
+        ], style={'margin-left': 5, 'margin-right': 5}),
+    ], style={'width': 340, 'margin-left': 35, 'margin-top': 35, 'margin-bottom': 35}),
+    html.Div([
+        dcc.Graph(
+            id='fig-image',
+            # Définition de la config afin de conserver les outils draw/erase/lasso
+            config={"modeBarButtonsToAdd": ["drawclosedpath", "eraseshape"], "displaylogo": False},
+            style={'width': 990, 'height': 730}
+        ),
+        html.Div(id='output-area', style={'color': 'white', 'margin-top': '10px'})
+    ], style={'width': 990, 'margin-top': 35, 'margin-right': 35, 'margin-bottom': 35, 'display': 'flex'})
 ],
     fluid=True,
     style={'display': 'flex'},
-    className='dashboard-container')
-
-
-@app.callback(
-    Output('graph-container', 'children'),
-    [Input('file-dropdown', 'value')]
+    className='dashboard-container'
 )
-def display_selected_file(selected_filename):
-    if not selected_filename:
-        return dcc.Graph(id="fig-image", figure=scatter_fig, style={'width': 790})
-
-    try:
-        image_url = get_image_url(selected_filename)
-        response = requests.get(image_url)
-        image = Image.open(io_buffer.BytesIO(response.content))
-        image = image.resize((790, 790))
-
-        fig = px.imshow(image)
-        fig.update_layout(
-            dragmode="drawclosedpath",
-            paper_bgcolor='black',
-            plot_bgcolor='black',
-            width=image.width,  # Utilisation de la taille originale
-            height=image.height,
-            xaxis_visible=False,
-            yaxis_visible=False,
-            showlegend=False,
-            margin=dict(l=0, r=0, t=0, b=0)
-        )
-        config = {"modeBarButtonsToAdd": ["drawclosedpath", "eraseshape"]}
-        return dcc.Graph(id="fig-image", figure=fig, config=config)
-    except Exception as e:
-        return html.Div(f'Error loading file: {str(e)}')
 
 
+def generate_figure(image):
+    fig = px.imshow(image)
+    # Configuration du mode de dessin
+    fig.update_layout(
+        dragmode="drawclosedpath",
+        paper_bgcolor='black',
+        plot_bgcolor='black',
+        width=image.width,
+        height=image.height,
+        xaxis_visible=False,
+        yaxis_visible=False,
+        showlegend=False,
+        margin=dict(l=0, r=0, t=0, b=0),
+        shapes=[]
+    )
+    return fig
+
+
+# Callback pour générer ou mettre à jour le graphique (figure)
 @app.callback(
-    Output("output-area", "children"),
-    Input("fig-image", "relayoutData")
+    Output("fig-image", "figure"),
+    Input("file-dropdown", "value"),
+    Input("reset-button", "n_clicks"),
+    Input("stored-shapes", "data"),
+    State("fig-image", "figure")
 )
-def update_area(relayout_data):
-    if relayout_data and "shapes" in relayout_data:
-        shapes = relayout_data["shapes"]
-        if shapes and "path" in shapes[-1]:
-            path_str = shapes[-1]["path"]
-
-            # Extraction des coordonnées avec regex
-            matches = re.findall(r"[-+]?\d*\.\d+|\d+", path_str)
-
-            # Conversion en paires (x, y) et calcul de l'aire
+def update_figure(file_val, reset_clicks, stored_shapes, current_fig):
+    trigger = ctx.triggered_id
+    # Si le fichier change ou réinitialisation demandée, on regénère à partir de l'image
+    if trigger in ["file-dropdown", "reset-button"]:
+        if not file_val:
+            fig = scatter_fig
+        else:
             try:
-                coords = [(float(matches[i]), float(matches[i + 1])) for i in range(0, len(matches), 2)]
-                area = calculate_area(coords)
-                return f"Aire: {area:.2f} pixels²"
-            except (ValueError, IndexError) as e:
-                return f"Erreur dans le calcul : {str(e)}"
-    return "Aire: 0 pixels²"
+                image_url = get_image_url(file_val)
+                response = requests.get(image_url)
+                image = Image.open(io_buffer.BytesIO(response.content))
+                image = image.resize((790, 790))
+                fig = generate_figure(image)
+            except Exception as e:
+                fig = go.Figure()
+                fig.add_annotation(text=f"Error: {str(e)}")
+    else:
+        # Sinon, on part du graphique courant
+        if current_fig is None:
+            fig = scatter_fig
+        else:
+            fig = current_fig
+
+    # Mise à jour des annotations (numéros de zone)
+    if stored_shapes is not None:
+        def centroid(coords):
+            if not coords:
+                return 0, 0
+            avg_x = sum(x for x, y in coords) / len(coords)
+            avg_y = sum(y for x, y in coords) / len(coords)
+            return avg_x, avg_y
+
+        annotations = []
+        for i, shape in enumerate(stored_shapes):
+            path_str = shape.get("path", "")
+            matches = re.findall(r"[-+]?\d*\.\d+|\d+", path_str)
+            coords = []
+            try:
+                coords = [(float(matches[j]), float(matches[j + 1])) for j in range(0, len(matches), 2)]
+            except Exception:
+                continue
+            cx, cy = centroid(coords)
+            annotations.append(dict(
+                x=cx,
+                y=cy,
+                text=str(i + 1),
+                showarrow=True,
+                arrowhead=2,
+                ax=0,
+                ay=-20,
+                font=dict(color="white", size=12)
+            ))
+        fig["layout"]["annotations"] = annotations
+    return fig
+
+
+# Callback pour mettre à jour les données stockées et l'affichage des aires
+@app.callback(
+    Output("stored-shapes", "data"),
+    Output("output-area", "children"),
+    Output("key-capture", "value"),
+    Input("fig-image", "relayoutData"),
+    Input("reset-button", "n_clicks"),
+    Input({"type": "classify-button", "index": ALL}, "n_clicks"),
+    Input("key-capture", "value"),
+    State("stored-shapes", "data"),
+    State("zone-selector", "value"),
+    prevent_initial_call=True
+)
+def update_shapes(relayout_data, reset_clicks, classify_clicks, key_value, stored_shapes, selected_zone):
+    if stored_shapes is None:
+        stored_shapes = []
+    trigger = ctx.triggered_id
+
+    if trigger == "reset-button":
+        return [], "Annotations réinitialisées.", ""
+
+    if isinstance(trigger, dict) and trigger.get("type") == "classify-button":
+        label = trigger["index"]
+        if selected_zone is not None and selected_zone < len(stored_shapes):
+            stored_shapes[selected_zone]["customdata"] = label
+        elif stored_shapes:
+            stored_shapes[-1]["customdata"] = label
+
+    if trigger == "key-capture":
+        key_value = ""
+
+    if relayout_data:
+        if "shapes" in relayout_data:
+            new_shapes = relayout_data["shapes"]
+            if len(new_shapes) == len(stored_shapes):
+                for i, new_shape in enumerate(new_shapes):
+                    new_shape["customdata"] = stored_shapes[i].get("customdata", "non classé")
+            else:
+                for i, new_shape in enumerate(new_shapes):
+                    if i < len(stored_shapes):
+                        new_shape["customdata"] = stored_shapes[i].get("customdata", "non classé")
+                    else:
+                        new_shape["customdata"] = "non classé"
+            stored_shapes = new_shapes
+
+    areas = []
+    for i, shape in enumerate(stored_shapes):
+        path_str = shape.get("path", "")
+        matches = re.findall(r"[-+]?\d*\.\d+|\d+", path_str)
+        try:
+            coords = [(float(matches[j]), float(matches[j + 1])) for j in range(0, len(matches), 2)]
+            area = calculate_area(coords)
+            lab = shape.get("customdata", "non classé")
+            areas.append(f"Zone {i + 1} : {area:.2f} pixels² ({lab})")
+        except Exception as e:
+            areas.append(f"Zone {i + 1} : erreur ({e})")
+
+    return stored_shapes, html.Ul([html.Li(a) for a in areas]), key_value
+
+
+# Callback pour mettre à jour les options du dropdown "zone-selector"
+@app.callback(
+    Output("zone-selector", "options"),
+    Input("stored-shapes", "data")
+)
+def update_zone_selector_options(stored_shapes):
+    if stored_shapes is None:
+        return []
+    return [{"label": f"Zone {i + 1}", "value": i} for i in range(len(stored_shapes))]
 
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run(debug=False)
