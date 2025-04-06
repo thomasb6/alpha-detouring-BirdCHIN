@@ -1,61 +1,44 @@
-/* Conteneur principal */
-.dashboard-container {
+
+dashboard-container {
     max-width: 1400px;
-    width: 100%;
     margin: 0 auto;
     background-color: #010103;
     border: 1px solid #cccccc;
     border-radius: 10px;
-    padding: 20px;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
 }
 
-/* Fond de la page */
 body {
     background-color: #708090;
     margin: 0;
     font-family: "Poppins", sans-serif;
 }
 
-.left-block {
+.left-block,
+.middle-block,
+.right-block {
     flex: 1;
-    margin: 35px 35px;
+    padding: 15px;
     color: #ffffff;
 }
 
 .middle-block {
-    flex: 1;   /* Le bloc central occupe 5 parts */
-    margin: 35px 15px;
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-.right-block {
-    flex: 1;   /* Le bloc de droite occupe 2 parts */
-    margin: 35px 35px 35px 15px;
-    padding: 10px;
-    color: #ffffff;
-}
-
-
-/* Graphique */
 .graph-figure {
-    width: 790px;
-    height: 790px;
+    width: 100%;
+    max-width: 790px;
+    height: auto;
 }
 
-/* Zone d'output sous le graphique */
-.output-area {
-    color: white;
-    margin-top: 10px;
-}
-
-/* Styles des boutons et autres composants sont hérités de Bootstrap et du thème FLATLY,
-   avec quelques ajustements spécifiques */
 .upload-area {
     width: 100%;
     min-height: 60px;
-    line-height: normal;
     border-width: 1px;
     border-style: dashed;
     border-radius: 5px;
@@ -66,41 +49,44 @@ body {
     color: white;
 }
 
-.upload-link {
-    color: white;
-    text-decoration: underline;
-}
-
-.key-capture {
-    opacity: 0;
-    position: absolute;
-}
-
-/* Titres et paragraphes */
 h1 {
-    font-size: 35px;
+    font-size: 32px;
     margin: 15px 0;
 }
 
 p {
     font-size: 16px;
-    margin: 15px 0;
+    margin: 10px 0;
     text-align: justify;
 }
 
-/* Ajustements pour mobile */
-@media (max-width: 767px) {
-    .left-block, .right-block {
+@media (max-width: 768px) {
+    .dashboard-container {
+        flex-direction: column;
+        padding: 10px;
+    }
+
+    .left-block,
+    .middle-block,
+    .right-block {
         width: 100%;
-        margin: 15px;
+        margin: 10px 0;
     }
-    .middle-block {
-        margin: 15px;
+
+    .graph-figure {
+        width: 100%;
+        height: auto;
     }
+
     h1 {
-        font-size: 28px;
+        font-size: 24px;
     }
+
     p {
         font-size: 14px;
     }
+}
+.key-capture {
+    opacity: 0;
+    position: absolute;
 }
