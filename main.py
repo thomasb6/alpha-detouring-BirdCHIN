@@ -92,6 +92,7 @@ app.layout = dbc.Container([
         dcc.Graph(
             id='fig-image',
             config=config_graph,
+            style={'width': '100%', 'height': 'auto'},
             className="graph-figure"
         ),
         html.Div(id='output-area', className="output-area")
