@@ -260,14 +260,22 @@ def update_shapes(relayout_data, reset_clicks, classify_clicks, key_value, uploa
     if stored_shapes is None:
         stored_shapes = []
 
+    # Lorsqu'un fichier JSON est uploadé, on ajoute les nouvelles annotations aux annotations existantes
     if trigger == "upload-annotations" and upload_contents:
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
-            annotations = json.loads(decoded.decode('utf-8'))
-            stored_shapes = annotations
+            new_annotations = json.loads(decoded.decode('utf-8'))
         except Exception as e:
             print(f"Erreur lors du chargement des annotations : {e}")
+            new_annotations = []
+        # Pour chaque nouvelle annotation, on s'assure d'avoir un identifiant unique
+        for shape in new_annotations:
+            if "customid" not in shape:
+                shape["customid"] = len(stored_shapes) + 1
+        # On ajoute les nouvelles annotations aux annotations existantes
+        stored_shapes.extend(new_annotations)
+
         areas = []
         for i, shape in enumerate(stored_shapes):
             path_str = shape.get("path", "")
@@ -299,6 +307,7 @@ def update_shapes(relayout_data, reset_clicks, classify_clicks, key_value, uploa
             new_shapes = relayout_data["shapes"]
             updated_shapes = []
             for i, new_shape in enumerate(new_shapes):
+                # Conserver la classification des zones existantes
                 if i < len(stored_shapes):
                     new_shape["customdata"] = stored_shapes[i].get("customdata", "Tache")
                 else:
@@ -451,6 +460,26 @@ def download_annotations(n_clicks, stored_shapes, file_val):
     content = json.dumps(stored_shapes)
     filename = f"{file_val.split('.')[0]}.json" if file_val else "annotations.json"
     return dcc.send_string(content, filename)
+@app.callback(
+    Output('upload-div', 'children'),
+    Input('upload-annotations', 'contents'),
+    prevent_initial_call=True
+)
+def reset_upload(contents):
+    # Une fois qu'un fichier est déposé (contenu non vide), on recrée le composant d'upload.
+    if contents:
+        return [
+            dcc.Upload(
+                id='upload-annotations',
+                children=html.Div([
+                    'Glissez-déposez ou ',
+                    html.A('sélectionnez un fichier annoté', className="upload-link")
+                ]),
+                className="upload-area",
+                multiple=False
+            )
+        ]
+    return dash.no_update
 
 
 if __name__ == '__main__':
