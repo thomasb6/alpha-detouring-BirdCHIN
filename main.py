@@ -20,6 +20,7 @@ FOLDER_PATH = "optos_jpg"
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FOLDER_PATH}"
 GITHUB_TOKEN = "ghp_nwTO1ndYrsxh9HxEJKi2QiZNDWGCSX?3?z?U?g?NP"
 GITHUB_TOKEN = GITHUB_TOKEN.replace("?", "")
+
 def get_filenames():
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -46,19 +47,20 @@ scatter_fig = go.Figure(
         y=np.random.randn(1000),
         mode='markers',
         marker=dict(
-            color=random.sample(['#ecf0f1'] * 500 + ["#3498db"] * 500, 1000),
+            color=random.sample(['#ecf0f1'] * 500 + ["#2d3436"] * 500, 1000),
             line_width=1
         )
     )
 )
 scatter_fig.update_layout(
-    plot_bgcolor='#010103',
-    width=790,
-    height=790,
+    plot_bgcolor='#dfe6e9',
+    width=700,
+    height=700,
     xaxis_visible=False,
     yaxis_visible=False,
     showlegend=False,
-    margin=dict(l=0, r=0, t=0, b=0)
+    margin=dict(l=0, r=0, t=0, b=0),
+    hovermode=False
 )
 
 # Configuration pour l'édition des formes sur le graphique
@@ -67,86 +69,146 @@ config_graph = {
     "displaylogo": False,
 }
 
+# Ajout du thème FLATLY et de Font Awesome pour les icônes
+external_stylesheets = [
+    dbc.themes.FLATLY,
+    "https://use.fontawesome.com/releases/v5.15.3/css/all.css"
+]
+
 # L'application charge automatiquement le fichier CSS présent dans le dossier assets.
-app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY], title="BirdChin")
+app = Dash(__name__, external_stylesheets=external_stylesheets, title="BirdChin")
 server = app.server
 
 filenames = get_filenames()
 classification_options = ["plaque", "atrophique", "incertaine"]
+# Dictionnaire de correspondance entre le libellé et la touche souhaitée
+shortcut_keys = {"plaque": "p", "atrophique": "a", "incertaine": "i"}
 
-app.layout = dbc.Container([
-    # Bloc de gauche : Instructions
-    html.Div([
-        html.H1([html.Span("Instructions d'utilisation")]),
-        html.P("1. Sélectionnez un fichier à analyser dans le menu déroulant."),
-        html.P("2. Utilisez l'outil de dessin pour détourer une tache sur l'image."),
-        html.P("3. Vous pouvez réinitialiser le détourage."),
-        html.P("4. Attribuez une classification à chaque zone en cliquant sur l'un des boutons proposés après le détourage."),
-        html.P("5. Vous pouvez modifier une classification en sélectionnant une Zone existante à partir du menu déroulant."),
-        html.P("6. Vous pouvez modifier la taille d'une tache en la sélectionnant sur le dessin."),
-        html.P("7. Cliquez sur 'Exporter vers Excel' pour télécharger un tableur contenant un résumé des zones pour une image.")
-    ], className='left-block'),
+classification_buttons = [
+    dbc.Button(
+        opt,
+        id={"type": "classify-button", "index": opt},
+        color="secondary",
+        style={"flex": "1", "margin": "0"},
+        className="classification-button"
+    )
+    for opt in classification_options
+]
 
-    # Bloc du milieu : Graphique
-    html.Div([
-        dcc.Graph(
-            id='fig-image',
-            config=config_graph,
-            style={'width': '100%', 'height': 'auto'},
-            className="graph-figure"
-        ),
-        html.Div(id='output-area', className="output-area")
-    ], className='middle-block'),
 
-    # Bloc de droite : Contrôles et interactions
-    html.Div([
-        dcc.Dropdown(
-            id='file-dropdown',
-            options=[{'label': f, 'value': f} for f in filenames],
-            placeholder='Sélectionnez un fichier à analyser'
-        ),
-        html.Br(),
-        html.P("Classification :"),
-        dbc.ButtonGroup([
-            dbc.Button(opt, id={"type": "classify-button", "index": opt}, color="secondary")
-            for opt in classification_options
-        ], vertical=False, className="mb-2"),
-        dcc.Dropdown(
-            id="zone-selector",
-            options=[],
-            placeholder="Sélectionnez une zone à reclassifier"
-        ),
-        html.Br(),
-        dbc.Button("Réinitialiser les annotations", id="reset-button", color="danger", className="mb-2"),
-        html.Br(),
-        dbc.Button("Exporter vers Excel", id="export-button", color="primary", className="mb-2"),
-        dcc.Download(id="download-dataframe-xlsx"),
-        html.Br(),
-        dbc.Button("Télécharger les annotations", id="download-json-button", color="primary", className="mb-2"),
-        dcc.Download(id="download-json"),
-        dcc.Upload(
-            id='upload-annotations',
-            children=html.Div([
-                'Glissez-déposez ou ',
-                html.A('sélectionnez un fichier annoté', className="upload-link")
-            ]),
-            className="upload-area",
-            multiple=False
-        ),
-        dcc.Input(
-            id="key-capture",
-            type="text",
-            className="key-capture",
-            autoFocus=True
-        ),
-        dcc.Store(id="stored-shapes", data=[]),
-        html.Div(id='output-text', className="output-text")
-    ], className='right-block')
-],
+
+# Layout principal
+app.layout = html.Div([
+    dbc.Container([
+        # Bloc de gauche : Instructions + entête avec logo et titre
+        html.Div([
+            html.Div([
+                html.Img(src=app.get_asset_url('logo.png'),
+                         style={
+                             'height': '80px',  # Logo agrandi
+                             'verticalAlign': 'middle',
+                             'marginRight': '10px'
+                         }),
+                html.Span("BirdChin", style={"fontSize": "37px", "verticalAlign": "middle"}),
+            ], className="logo-container"),  # Conteneur pour le logo et le titre
+            html.H2([html.Span("Instructions d'utilisation")]),
+            html.P("1. Choisissez une image depuis le menu déroulant."),
+            html.P("2. Tracez le contour du nerf optique sur l'image."),
+            html.P("3. Tracez le contour d'une lésion sur l'image."),
+            html.P("4. Classez la zone en cliquant sur le type approprié."),
+            html.H3("Vous pouvez supprimer une zone en la sélectionnant."),
+            html.H3("Vous pouvez modifier une classification via le menu déroulant."),
+            html.P("5. Exportez les résultats vers Excel pour obtenir un résumé."),
+            html.P("6. Téléchargez les zones annotées."),
+            html.H3("Vous pouvez importer un fichier avec les zones annotées."),
+        ], className='left-block'),
+
+        # Bloc du milieu : Graphique
+        html.Div([
+            dcc.Graph(
+                id='fig-image',
+                config=config_graph,
+                style={'width': '100%', 'height': 'auto'},
+                className="graph-figure"
+            ),
+            html.Div(id='output-area', className="output-area")
+        ], className='middle-block'),
+
+        # Bloc de droite : Contrôles et interactions
+        html.Div([
+            html.P("Choix de l'image :"),
+            dcc.Dropdown(
+                id='file-dropdown',
+                options=[{'label': f, 'value': f} for f in filenames],
+                placeholder='Sélectionnez un fichier à analyser'
+            ),
+            html.P("Classification :"),
+            dbc.ButtonGroup(
+                classification_buttons,
+                vertical=False,
+                className="mb-2",
+                style={"width": "100%", "display": "flex"}
+            ),
+            dcc.Dropdown(
+                id="zone-selector",
+                options=[],
+                placeholder="Sélectionnez une zone à reclassifier"
+            ),
+            html.P("Réinitialiser :"),
+            dbc.Button([
+                html.I(className="fas fa-undo", style={"margin-right": "5px"}),
+                "Réinitialiser les zones annotées"
+            ], id="reset-button", color="danger", className="mb-2"),
+            html.P("Exporter :"),
+            dbc.Button([
+                html.I(className="fas fa-download", style={"margin-right": "5px"}),
+                "Exporter les résultats dans un tableur"
+            ], id="export-button", color="primary", className="mb-2"),
+            dcc.Download(id="download-dataframe-xlsx"),
+            dbc.Button([
+                html.I(className="fas fa-file-export", style={"margin-right": "5px"}),
+                "Exporter les annotations"
+            ], id="download-json-button", color="primary", className="mb-2"),
+            dcc.Download(id="download-json"),
+            html.P("Importer :"),
+            dcc.Upload(
+                id='upload-annotations',
+                children=html.Div([
+                    html.I(className="fas fa-upload", style={"margin-right": "5px"}),
+                    "Glissez-déposez ou sélectionnez un fichier annoté"
+                ]),
+                className="upload-area",
+                style={"width": "100%"},
+                multiple=False
+            ),
+            dcc.Store(id="stored-shapes", data=[]),
+            html.Div(id='output-text', className="output-text")
+        ], className='right-block')
+    ],
     fluid=True,
     className='dashboard-container',
     style={'display': 'flex', 'justify-content': 'space-between'}
-)
+    ),
+
+    # Footer
+    html.Footer(
+        html.Div([
+            "© 2025 – Réalisé par ",
+            html.A(
+                "Thomas Foulonneau",
+                href="https://www.linkedin.com/in/thomas-foulonneau?originalSubdomain=fr",
+                target="_blank",
+                style={
+                    "color": "#ffffff",
+                    "textDecoration": "underline"
+                }
+            ),
+            " – Interne à l'Ophtalmopole de Paris"
+        ]),
+        className="footer"
+    )
+
+])
 
 def generate_figure(image):
     fig = px.imshow(image)
@@ -167,16 +229,14 @@ def generate_figure(image):
         shapes=[],
         newshape=dict(
             line=dict(
-                color='white',  # Couleur similaire à celle du lasso (vous pouvez la modifier)
-                width=2,  # Épaisseur fine du trait
-                dash='dash'  # Trait en pointillé, comme le lasso
+                color='white',  # Couleur similaire à celle du lasso (modifiable)
+                width=2,         # Épaisseur fine du trait
+                dash='dash'      # Trait en pointillé
             )
         ),
-        hovermode=False  # Désactive le hover dans l'ensemble de la figure
+        hovermode=False
     )
     return fig
-
-# --- Les callbacks restent inchangés ---
 
 @app.callback(
     Output("fig-image", "figure"),
@@ -195,7 +255,7 @@ def update_figure(file_val, reset_clicks, stored_shapes, current_fig):
                 image_url = get_image_url(file_val)
                 response = requests.get(image_url)
                 image = Image.open(io_buffer.BytesIO(response.content))
-                image = image.resize((790, 790))
+                image = image.resize((700, 700))
                 fig = generate_figure(image)
             except Exception as e:
                 fig = go.Figure()
@@ -209,7 +269,7 @@ def update_figure(file_val, reset_clicks, stored_shapes, current_fig):
             shape.setdefault("layer", "above")
             shape.setdefault("xref", "x")
             shape.setdefault("yref", "y")
-            shape.setdefault("line", {"width": 0.1})  # Définit une épaisseur de trait de 1 pixel
+            shape.setdefault("line", {"width": 0.1})
         fig["layout"]["shapes"] = stored_shapes
 
         def centroid(coords):
@@ -242,73 +302,58 @@ def update_figure(file_val, reset_clicks, stored_shapes, current_fig):
         fig["layout"]["annotations"] = annotations
     return fig
 
+
 @app.callback(
     Output("stored-shapes", "data"),
     Output("output-area", "children"),
-    Output("key-capture", "value"),
     Input("fig-image", "relayoutData"),
     Input("reset-button", "n_clicks"),
     Input({"type": "classify-button", "index": ALL}, "n_clicks"),
-    Input("key-capture", "value"),
     Input("upload-annotations", "contents"),
     State("stored-shapes", "data"),
     State("zone-selector", "value"),
     prevent_initial_call=True
 )
-def update_shapes(relayout_data, reset_clicks, classify_clicks, key_value, upload_contents, stored_shapes, selected_zone):
+def update_shapes(relayout_data, reset_clicks, classify_clicks, upload_contents, stored_shapes, selected_zone):
     trigger = ctx.triggered_id
 
     if stored_shapes is None:
         stored_shapes = []
 
-    # Lorsqu'un fichier JSON est uploadé, on ajoute les nouvelles annotations aux annotations existantes
+    # Si l'utilisateur charge un fichier JSON
     if trigger == "upload-annotations" and upload_contents:
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
             new_annotations = json.loads(decoded.decode('utf-8'))
         except Exception as e:
-            print(f"Erreur lors du chargement des annotations : {e}")
             new_annotations = []
-        # Pour chaque nouvelle annotation, on s'assure d'avoir un identifiant unique
+            print(f"Erreur lors du chargement des annotations : {e}")
         for shape in new_annotations:
             if "customid" not in shape:
                 shape["customid"] = len(stored_shapes) + 1
-        # On ajoute les nouvelles annotations aux annotations existantes
         stored_shapes.extend(new_annotations)
+        summary = générer_resume(stored_shapes)
+        return stored_shapes, summary
 
-        areas = []
-        for i, shape in enumerate(stored_shapes):
-            path_str = shape.get("path", "")
-            matches = re.findall(r"[-+]?\d*\.\d+|\d+", path_str)
-            try:
-                coords = [(float(matches[j]), float(matches[j+1])) for j in range(0, len(matches), 2)]
-                area = calculate_area(coords)
-                lab = shape.get("customdata", "Tache")
-                areas.append(f"Zone {i+1} : {area:.2f} pixels² ({lab})")
-            except Exception as e:
-                areas.append(f"Zone {i+1} : erreur ({e})")
-        return stored_shapes, html.Ul([html.Li(a) for a in areas]), key_value
+    # Si l'utilisateur réinitialise les annotations
+    elif trigger == "reset-button":
+        return [], "Annotations réinitialisées."
 
-    if trigger == "reset-button":
-        return [], "Annotations réinitialisées.", ""
-
-    if isinstance(trigger, dict) and trigger.get("type") == "classify-button":
+    # Si le trigger est un clic sur un bouton de classification
+    elif isinstance(trigger, dict) and trigger.get("type") == "classify-button":
         label = trigger["index"]
         if selected_zone is not None and selected_zone < len(stored_shapes):
             stored_shapes[selected_zone]["customdata"] = label
         elif stored_shapes:
             stored_shapes[-1]["customdata"] = label
 
-    if trigger == "key-capture":
-        key_value = ""
-
-    if relayout_data:
+    # Si l'utilisateur modifie une annotation via l'outil de dessin (relayoutData)
+    elif relayout_data:
         if "shapes" in relayout_data:
             new_shapes = relayout_data["shapes"]
             updated_shapes = []
             for i, new_shape in enumerate(new_shapes):
-                # Conserver la classification des zones existantes
                 if i < len(stored_shapes):
                     new_shape["customdata"] = stored_shapes[i].get("customdata", "Tache")
                 else:
@@ -318,6 +363,7 @@ def update_shapes(relayout_data, reset_clicks, classify_clicks, key_value, uploa
                 updated_shapes.append(new_shape)
             stored_shapes = updated_shapes
         else:
+            # Mise à jour des propriétés d'une annotation existante
             for key, value in relayout_data.items():
                 if key.startswith("shapes["):
                     match = re.match(r"shapes\[(\d+)\]\.(\w+)", key)
@@ -327,8 +373,12 @@ def update_shapes(relayout_data, reset_clicks, classify_clicks, key_value, uploa
                         if index < len(stored_shapes):
                             stored_shapes[index][prop] = value
 
+    summary = générer_resume(stored_shapes)
+    return stored_shapes, summary
+
+def générer_resume(shapes):
     areas = []
-    for i, shape in enumerate(stored_shapes):
+    for i, shape in enumerate(shapes):
         path_str = shape.get("path", "")
         matches = re.findall(r"[-+]?\d*\.\d+|\d+", path_str)
         try:
@@ -338,7 +388,21 @@ def update_shapes(relayout_data, reset_clicks, classify_clicks, key_value, uploa
             areas.append(f"Zone {i+1} : {area:.2f} pixels² ({lab})")
         except Exception as e:
             areas.append(f"Zone {i+1} : erreur ({e})")
-    return stored_shapes, html.Ul([html.Li(a) for a in areas]), key_value
+    return dbc.Card(
+        [
+            dbc.CardHeader("Résumé des zones annotées :"),
+            dbc.CardBody(
+                html.Ul([html.Li(a) for a in areas]),
+                style={"padding": "10px"}
+            )
+        ],
+        style={
+            "marginTop": "10px",
+            "border": "1px solid #cccccc",
+            "borderRadius": "5px",
+            "backgroundColor": "#f8f9fa"
+        }
+    )
 
 @app.callback(
     Output("zone-selector", "options"),
@@ -461,13 +525,13 @@ def download_annotations(n_clicks, stored_shapes, file_val):
     content = json.dumps(stored_shapes)
     filename = f"{file_val.split('.')[0]}.json" if file_val else "annotations.json"
     return dcc.send_string(content, filename)
+
 @app.callback(
     Output('upload-div', 'children'),
     Input('upload-annotations', 'contents'),
     prevent_initial_call=True
 )
 def reset_upload(contents):
-    # Une fois qu'un fichier est déposé (contenu non vide), on recrée le composant d'upload.
     if contents:
         return [
             dcc.Upload(
@@ -481,7 +545,6 @@ def reset_upload(contents):
             )
         ]
     return dash.no_update
-
 
 if __name__ == '__main__':
     app.run(debug=False)
