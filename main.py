@@ -211,6 +211,7 @@ html.P("Paramètres d'affichage :"),
                 check=True,
                 className="mb-2"
             ),
+
             html.P("Importer :"),
             html.Div(
                 id='upload-div',
@@ -261,8 +262,8 @@ def generate_figure(image):
         uirevision="constant",
         paper_bgcolor='black',
         plot_bgcolor='black',
-        width=image.width,
-        height=image.height,
+        width=700,
+        height=700,
         xaxis_visible=False,
         yaxis_visible=False,
         showlegend=False,
@@ -301,7 +302,7 @@ def update_figure(file_val, reset_clicks, stored_shapes, show_zone_numbers, dash
                 image_url = get_image_url(file_val)
                 response = requests.get(image_url)
                 image = Image.open(io_buffer.BytesIO(response.content))
-                image = image.resize((700, 700))
+                #image = image.resize((700, 700))
                 fig = generate_figure(image)
             except Exception as e:
                 fig = go.Figure()
@@ -507,7 +508,7 @@ def export_to_excel(n_clicks, stored_shapes, file_val):
         response = requests.get(image_url)
         image = Image.open(io_buffer.BytesIO(response.content))
         # Redimensionnement pour conserver la cohérence avec le rendu (ici 700x700)
-        image = image.resize((700, 700))
+        #image = image.resize((700, 700))
         width, height = image.size
         nerf_optique_centroid = (width / 2, height / 2)
     except Exception as e:
