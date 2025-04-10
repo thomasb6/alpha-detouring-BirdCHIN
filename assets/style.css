@@ -138,3 +138,17 @@ h3 {
 }
 
 
+.right-block .form-check-input {
+    margin-right: 10px;    /* Espace entre la case et le texte */
+    margin-left: 0;        /* Pas de marge à gauche pour un alignement cohérent */
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.right-block .form-check-label {
+    margin-bottom: 0;
+    vertical-align: middle;
+    text-align: left;
+    font-size: 14px;
+    margin-left: 15px;
+}
