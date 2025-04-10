@@ -1,0 +1,140 @@
+body {
+    background-color: #ecf0f1;  /* Un gris très pâle pour ne pas avoir un blanc éclatant */
+    margin: 0;
+    font-family: "Poppins", sans-serif;
+}
+
+.dashboard-container {
+    max-width: 1400px;
+    margin: 10px auto;
+    background-color: #dfe6e9;  /* Fond légèrement plus sombre que le body */
+    border: 1px solid #cccccc;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.left-block  {
+    flex: 1;
+    padding: 15px;
+    color: #2d3436;  /* Gris foncé pour le texte */
+}
+
+.middle-block,
+.right-block {
+    flex: 1;
+    padding: 15px;
+    color: #2d3436;
+}
+
+.right-block p {
+    color: #2d3436;
+}
+
+.middle-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.graph-figure {
+    width: 100%;
+    max-width: 700px;
+    height: auto;
+}
+
+.upload-area {
+    width: 100%;
+    min-height: 60px;
+    border-width: 1px;
+    border-style: dashed;
+    border-radius: 5px;
+    text-align: center;
+    margin: 10px 0;
+    padding: 10px;
+    background-color: #b2bec3;  /* Un gris bleuté pour adoucir l'arrière-plan */
+    color: #2d3436;
+}
+
+h1 {
+    font-size: 32px;
+    margin: 15px 0;
+    text-align: justify;
+}
+
+h2 {
+    font-size: 25px;
+    margin: 15px 0;
+    text-align: justify;
+}
+
+p {
+    font-size: 16px;
+    margin: 10px 0;
+    text-align: justify;
+}
+
+h3 {
+    font-size: 14px;
+    margin: 10px 0;
+    text-align: justify;
+}
+
+/* Responsivité */
+@media (max-width: 768px) {
+    .dashboard-container {
+        flex-direction: column;
+        padding: 10px;
+    }
+
+    .left-block,
+    .middle-block,
+    .right-block {
+        width: 100%;
+        margin: 10px 0;
+    }
+
+    .graph-figure {
+        width: 100%;
+        height: auto;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    p {
+        font-size: 14px;
+    }
+}
+
+/* Style du footer */
+.footer {
+    font-size: 12px;
+    margin-top: 20px;
+    text-align: center;
+    color: #ffffff;
+    background-color: #636e72;  /* Un gris moyen pour le footer */
+    padding: 10px;
+}
+
+.right-block .form-control,
+.right-block .dropdown-menu,
+.right-block .upload-area,
+.right-block .btn {
+    width: 100%;
+}
+
+.logo-container {
+    border: 1px solid #cccccc;  /* La couleur ici est le même gris foncé utilisé pour le texte */
+    border-radius: 8px;         /* Bords arrondis pour rester dans un design moderne */
+    padding: 10px;
+    width: 100%; /* Un petit padding pour aérer le contenu */
+    display: inline-block;      /* Pour que l'encadré ne prenne que la largeur nécessaire */
+    margin-bottom: 15px;        /* Un écart par rapport aux éléments suivants */
+    background-color: #ecf0f1;
+    text-align: center;
+}
+
+
