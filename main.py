@@ -178,7 +178,7 @@ app.layout = html.Div([
             ], id="download-json-button", color="primary", className="mb-2"),
             dcc.Download(id="download-json"),
 html.P("Paramètres d'affichage :"),
-            html.Div(
+            dbc.FormGroup(
                 [
                     dbc.Checkbox(
                         id="show-zone-numbers",
@@ -191,9 +191,11 @@ html.P("Paramètres d'affichage :"),
                         className="form-check-label"
                     )
                 ],
+
+                check=True,
                 className="mb-2"
             ),
-            html.Div(
+            dbc.FormGroup(
                          [
                     dbc.Checkbox(
                         id="dashed-contour",
@@ -206,6 +208,7 @@ html.P("Paramètres d'affichage :"),
                         className="form-check-label"
                     )
                 ],
+                check=True,
                 className="mb-2"
             ),
             html.P("Importer :"),
