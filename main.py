@@ -273,7 +273,7 @@ def generate_figure(image):
             line=dict(
                 color='white',
                 width=2,
-                dash='dash'
+                dash='dot'
             )
         ),
         hovermode=False
@@ -318,7 +318,7 @@ def update_figure(file_val, reset_clicks, stored_shapes, show_zone_numbers, dash
             shape.setdefault("yref", "y")
             shape.setdefault("line", {"width": 0.1})
             # Mise à jour du style du contour selon l'état de la case
-            shape["line"]["dash"] = "dash" if dashed_contour else "solid"
+            shape["line"]["dash"] = "dot" if dashed_contour else "solid"
 
         fig["layout"]["shapes"] = stored_shapes
 
