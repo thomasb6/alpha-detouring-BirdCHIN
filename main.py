@@ -92,8 +92,8 @@ app = Dash(__name__, external_stylesheets=external_stylesheets, title="BirdChin"
 server = app.server
 
 filenames = get_filenames()
-classification_options = ["grande", "atrophique", "pigmentée", "incertaine"]
-shortcut_keys = {"grande": "g", "atrophique": "a", "pigmentée": "m", "incertaine": "i"}
+classification_options = ["grande", "atrophie", "pigment", "incertain"]
+shortcut_keys = {"grande": "g", "atrophie": "a", "pigment": "m", "incertain": "i"}
 
 classification_buttons = [
     dbc.Button(
