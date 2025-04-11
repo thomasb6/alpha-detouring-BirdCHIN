@@ -22,7 +22,7 @@ import base64
 # ====================================================
 REPO_OWNER = "thomasb6"
 REPO_NAME = "alpha-detouring-BirdCHIN"
-FOLDER_PATH = "Optos_1004"
+FOLDER_PATH = "cropped_images"
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FOLDER_PATH}"
 GITHUB_TOKEN = "ghp_nwTO1ndY???????????rsxh9HxEJKi2QiZNDWGCSX?3?z?U?g?NP"
 GITHUB_TOKEN = GITHUB_TOKEN.replace("?", "")
