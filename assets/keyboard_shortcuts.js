@@ -3,9 +3,9 @@ document.addEventListener('keydown', function(event) {
     // Définition du mapping : touche -> texte du bouton
     let shortcuts = {
         'g': 'grande',
-        'a': 'atrophique',
-        'p': 'pigmentée',
-        'i': 'incertaine'
+        'a': 'atrophie',
+        'p': 'pigment',
+        'i': 'incertain'
     };
 
     let key = event.key.toLowerCase();
