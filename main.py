@@ -324,12 +324,12 @@ html.P("Paramètres d'affichage :"),
 # ====================================================
 # FONCTION POUR GÉNÉRER LA FIGURE À PARTIR D'UNE IMAGE
 # ====================================================
-def generate_figure(image):
+def generate_figure(image, file_val=None):
     fig = px.imshow(image)
     fig.update_traces(hoverinfo='skip', hovertemplate=None)
     fig.update_layout(
         dragmode="drawclosedpath",
-        uirevision="constant",
+        uirevision=file_val or str(random.random()),  # valeur différente pour chaque image
         paper_bgcolor='black',
         plot_bgcolor='black',
         width=700,
@@ -349,6 +349,7 @@ def generate_figure(image):
         hovermode=False
     )
     return fig
+
 
 def shape_for_plotly(shape):
     """Supprime customdata et customid avant d'envoyer à Plotly."""
@@ -370,13 +371,12 @@ def shape_for_plotly(shape):
     State("fig-image", "figure")
 )
 def update_figure(file_val, reset_clicks, stored_shapes, show_zone_numbers, dashed_contour, zoom, rotation, current_fig):
-    # 1. Affiche l’image
     if file_val:
         try:
             image_url = get_image_url(file_val)
             response = requests.get(image_url)
             image = Image.open(io_buffer.BytesIO(response.content))
-            fig = generate_figure(image)
+            fig = generate_figure(image, file_val=file_val)
             width, height = image.size
         except Exception as e:
             fig = go.Figure()
@@ -473,27 +473,29 @@ def update_shapes_combined(
 
     # ----------- OUVERTURE IMAGE -----------
     if trigger == "file-dropdown" and file_val:
-        try:
-            image_url = get_image_url(file_val)
-            response = requests.get(image_url)
-            img = Image.open(io_buffer.BytesIO(response.content))
-            width, height = img.size
-        except Exception:
-            width, height = 700, 700
-        cx, cy = width / 2, height / 2
-        r = 50  # rayon par défaut
-        cercle_nerf = {
-            "type": "circle",
-            "xref": "x", "yref": "y",
-            "x0": cx - r, "y0": cy - r,
-            "x1": cx + r, "y1": cy + r,
-            "line": {"color": "white", "width": 2, "dash": "dot"},
-            "customdata": "nerf optique",
-            "customid": 1,
-            "editable": True,
-            "layer": "above"
-        }
-        stored_shapes = [cercle_nerf]
+        if not stored_shapes or len(stored_shapes) == 0:
+            # Première ouverture, on ajoute le nerf optique
+            try:
+                image_url = get_image_url(file_val)
+                response = requests.get(image_url)
+                img = Image.open(io_buffer.BytesIO(response.content))
+                width, height = img.size
+            except Exception:
+                width, height = 700, 700
+            cx, cy = width / 2, height / 2
+            r = 50  # rayon par défaut
+            cercle_nerf = {
+                "type": "circle",
+                "xref": "x", "yref": "y",
+                "x0": cx - r, "y0": cy - r,
+                "x1": cx + r, "y1": cy + r,
+                "line": {"color": "white", "width": 2, "dash": "dot"},
+                "customdata": "nerf optique",
+                "customid": 1,
+                "editable": True,
+                "layer": "above"
+            }
+            stored_shapes = [cercle_nerf]
         summary = générer_resume(stored_shapes)
         return stored_shapes, summary, new_upload
 
