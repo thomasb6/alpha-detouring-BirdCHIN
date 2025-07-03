@@ -15,6 +15,7 @@ from PIL import Image
 import re
 import pandas as pd
 import json
+from dash.dependencies import ALL
 import base64
 
 # ====================================================
@@ -30,6 +31,38 @@ GITHUB_TOKEN = GITHUB_TOKEN.replace("?", "")
 # ====================================================
 # FONCTIONS AUXILIAIRES POUR LA GESTION DES IMAGES ET DES COORDONNÉES
 # ====================================================
+def transform_coords(coords, zoom, rotation_deg, center):
+    from math import cos, sin, radians
+    rot = radians(rotation_deg)
+    cx, cy = center
+    out = []
+    for x, y in coords:
+        tx, ty = x - cx, y - cy
+        tx, ty = tx * zoom, ty * zoom
+        rx = tx * cos(rot) - ty * sin(rot)
+        ry = tx * sin(rot) + ty * cos(rot)
+        out.append((rx + cx, ry + cy))
+    return out
+
+def transform_shape(shape, zoom, rotation_deg, center):
+    s = shape.copy()
+    if s.get("type") == "circle":
+        coords = circle_to_coords(s)
+        coords_t = transform_coords(coords, zoom, rotation_deg, center)
+        xs = [pt[0] for pt in coords_t]
+        ys = [pt[1] for pt in coords_t]
+        s["x0"], s["x1"] = min(xs), max(xs)
+        s["y0"], s["y1"] = min(ys), max(ys)
+    elif "path" in s:
+        import re
+        path_str = s["path"]
+        matches = re.findall(r"[-+]?\d*\.\d+|\d+", path_str)
+        coords = [(float(matches[j]), float(matches[j+1])) for j in range(0, len(matches), 2)]
+        coords_t = transform_coords(coords, zoom, rotation_deg, center)
+        if coords_t:
+            path = "M " + " L ".join(f"{x},{y}" for x, y in coords_t) + " Z"
+            s["path"] = path
+    return s
 
 def get_filenames():
     headers = {
@@ -79,6 +112,20 @@ config_graph = {
     "modeBarButtonsToAdd": ["drawclosedpath", "eraseshape"],
     "displaylogo": False,
 }
+
+def circle_to_coords(shape, n_points=32):
+    """Renvoie une liste de coordonnées qui approchent le cercle Plotly."""
+    from math import cos, sin, pi
+    x0, y0, x1, y1 = shape["x0"], shape["y0"], shape["x1"], shape["y1"]
+    cx = (x0 + x1) / 2
+    cy = (y0 + y1) / 2
+    rx = abs(x1 - x0) / 2
+    ry = abs(y1 - y0) / 2
+    return [
+        (cx + rx * cos(2 * pi * i / n_points), cy + ry * sin(2 * pi * i / n_points))
+        for i in range(n_points)
+    ]
+
 
 # ====================================================
 # CONFIGURATION DE L'APPLICATION ET DU THÈME
@@ -211,6 +258,29 @@ html.P("Paramètres d'affichage :"),
                 check=True,
                 className="mb-2"
             ),
+            html.P("Ajustements globaux :"),
+            dbc.Button(
+                [
+                    html.I(className="fas fa-circle", style={"margin-right": "5px"}),
+                    "Ajouter le nerf optique"
+                ],
+                id="add-nerf-optique-button",
+                color="info",
+                className="mb-2",
+                style={"width": "100%"}
+            ),
+            html.Label("Zoom global :"),
+            dcc.Slider(
+                id='zoom-slider',
+                min=0.80, max=1.2, step=0.01, value=1.0,
+                tooltip={"placement": "bottom", "always_visible": True}
+            ),
+            html.Label("Rotation globale (°) :"),
+            dcc.Slider(
+                id='rotation-slider',
+                min=-30, max=30, step=0.5, value=0,
+                tooltip={"placement": "bottom", "always_visible": True}
+            ),
 
             html.P("Importer :"),
             html.Div(
@@ -280,6 +350,11 @@ def generate_figure(image):
     )
     return fig
 
+def shape_for_plotly(shape):
+    """Supprime customdata et customid avant d'envoyer à Plotly."""
+    return {k: v for k, v in shape.items() if k not in ["customdata", "customid"]}
+
+
 # ====================================================
 # CALLBACK 1 : MISE À JOUR DE LA FIGURE D'AFFICHAGE
 # ====================================================
@@ -288,74 +363,81 @@ def generate_figure(image):
     Input("file-dropdown", "value"),
     Input("reset-button", "n_clicks"),
     Input("stored-shapes", "data"),
-    Input("show-zone-numbers", "checked"),   # Input pour l'affichage des numéros
-    Input("dashed-contour", "checked"),        # Nouvel input pour le contour pointillé
+    Input("show-zone-numbers", "checked"),
+    Input("dashed-contour", "checked"),
+    Input("zoom-slider", "value"),
+    Input("rotation-slider", "value"),
     State("fig-image", "figure")
 )
-def update_figure(file_val, reset_clicks, stored_shapes, show_zone_numbers, dashed_contour, current_fig):
-    trigger = ctx.triggered_id
-    if trigger in ["file-dropdown", "reset-button"]:
-        if not file_val:
-            fig = scatter_fig
-        else:
-            try:
-                image_url = get_image_url(file_val)
-                response = requests.get(image_url)
-                image = Image.open(io_buffer.BytesIO(response.content))
-                #image = image.resize((700, 700))
-                fig = generate_figure(image)
-            except Exception as e:
-                fig = go.Figure()
-                fig.add_annotation(text=f"Error: {str(e)}")
+def update_figure(file_val, reset_clicks, stored_shapes, show_zone_numbers, dashed_contour, zoom, rotation, current_fig):
+    # 1. Affiche l’image
+    if file_val:
+        try:
+            image_url = get_image_url(file_val)
+            response = requests.get(image_url)
+            image = Image.open(io_buffer.BytesIO(response.content))
+            fig = generate_figure(image)
+            width, height = image.size
+        except Exception as e:
+            fig = go.Figure()
+            fig.add_annotation(text=f"Erreur lors du chargement : {e}")
+            width, height = 700, 700
     else:
-        fig = current_fig if current_fig is not None else scatter_fig
+        fig = scatter_fig
+        width, height = 700, 700
 
+    cx, cy = width / 2, height / 2
+
+    # 2. Affiche les shapes avec transformation
     if stored_shapes is not None:
+        plotly_shapes = []
         for shape in stored_shapes:
-            shape.setdefault("editable", True)
-            shape.setdefault("layer", "above")
-            shape.setdefault("xref", "x")
-            shape.setdefault("yref", "y")
-            shape.setdefault("line", {"width": 0.1})
-            # Mise à jour du style du contour selon l'état de la case
-            shape["line"]["dash"] = "dot" if dashed_contour else "solid"
+            shape_t = transform_shape(shape, zoom, rotation, (cx, cy))
+            shape_t.setdefault("editable", True)
+            shape_t.setdefault("layer", "above")
+            shape_t.setdefault("xref", "x")
+            shape_t.setdefault("yref", "y")
+            shape_t.setdefault("line", {"width": 0.1})
+            shape_t["line"]["dash"] = "dot" if dashed_contour else "solid"
+            plotly_shapes.append(shape_for_plotly(shape_t))
+        fig["layout"]["shapes"] = plotly_shapes
 
-        fig["layout"]["shapes"] = stored_shapes
+        # Annotations pour les numéros
+        def centroid(coords):
+            if not coords:
+                return 0, 0
+            avg_x = sum(x for x, y in coords) / len(coords)
+            avg_y = sum(y for x, y in coords) / len(coords)
+            return avg_x, avg_y
 
-        # Ajout des annotations pour les numéros de zones si la case est cochée
-        if show_zone_numbers:
-            def centroid(coords):
-                if not coords:
-                    return 0, 0
-                avg_x = sum(x for x, y in coords) / len(coords)
-                avg_y = sum(y for x, y in coords) / len(coords)
-                return avg_x, avg_y
-
-            annotations = []
-            for i, shape in enumerate(stored_shapes):
+        annotations = []
+        for i, shape in enumerate(stored_shapes):
+            # Applique la même transformation aux coords pour les annotations
+            if shape.get("type") == "circle":
+                coords = circle_to_coords(shape)
+            else:
                 path_str = shape.get("path", "")
                 matches = re.findall(r"[-+]?\d*\.\d+|\d+", path_str)
-                coords = []
                 try:
                     coords = [(float(matches[j]), float(matches[j + 1])) for j in range(0, len(matches), 2)]
                 except Exception:
-                    continue
-                cx, cy = centroid(coords)
-                annotations.append(dict(
-                    x=cx,
-                    y=cy,
-                    text=str(i + 1),
-                    showarrow=True,
-                    arrowhead=2,
-                    ax=0,
-                    ay=-20,
-                    font=dict(color="white", size=12)
-                ))
-            fig["layout"]["annotations"] = annotations
-        else:
-            # Pas d'annotations si la case est décochée
-            fig["layout"]["annotations"] = []
+                    coords = []
+            coords_t = transform_coords(coords, zoom, rotation, (cx, cy))
+            cx_ann, cy_ann = centroid(coords_t)
+            annotations.append(dict(
+                x=cx_ann,
+                y=cy_ann,
+                text=str(i + 1),
+                showarrow=True,
+                arrowhead=2,
+                ax=0,
+                ay=-20,
+                font=dict(color="white", size=12)
+            ))
+        fig["layout"]["annotations"] = annotations if show_zone_numbers else []
+
     return fig
+
 
 # ====================================================
 # CALLBACK 2 : GESTION DES ANNOTATIONS, CLASSIFICATIONS, RÉINITIALISATION ET UPLOAD
@@ -364,37 +446,58 @@ def update_figure(file_val, reset_clicks, stored_shapes, show_zone_numbers, dash
     Output("stored-shapes", "data"),
     Output("output-area", "children"),
     Output("upload-div", "children"),
+    Input("add-nerf-optique-button", "n_clicks"),
     Input("fig-image", "relayoutData"),
     Input("reset-button", "n_clicks"),
-    Input({"type": "classify-button", "index": dash.dependencies.ALL}, "n_clicks"),
+    Input({"type": "classify-button", "index": ALL}, "n_clicks"),
     Input("upload-annotations", "contents"),
+    Input("file-dropdown", "value"),
     State("stored-shapes", "data"),
     State("zone-selector", "value"),
     prevent_initial_call=True
 )
-def update_shapes_combined(relayout_data, reset_clicks, classify_clicks, upload_contents, stored_shapes, selected_zone):
+def update_shapes_combined(
+    add_nerf_clicks,      # 1
+    relayout_data,        # 2
+    reset_clicks,         # 3
+    classify_clicks,      # 4
+    upload_contents,      # 5
+    file_val,             # 6
+    stored_shapes,        # 7
+    selected_zone         # 8
+):
     trigger = ctx.triggered_id
     if stored_shapes is None:
         stored_shapes = []
     new_upload = dash.no_update
 
-    # Traitement de l'upload d'un fichier d'annotations
-    if trigger == "upload-annotations" and upload_contents:
-        content_type, content_string = upload_contents.split(',')
-        decoded = base64.b64decode(content_string)
+    # ----------- OUVERTURE IMAGE -----------
+    if trigger == "file-dropdown" and file_val:
         try:
-            new_annotations = json.loads(decoded.decode('utf-8'))
-        except Exception as e:
-            new_annotations = []
-            print(f"Erreur lors du chargement des annotations : {e}")
-        for shape in new_annotations:
-            if "customid" not in shape:
-                shape["customid"] = len(stored_shapes) + 1
-        stored_shapes.extend(new_annotations)
+            image_url = get_image_url(file_val)
+            response = requests.get(image_url)
+            img = Image.open(io_buffer.BytesIO(response.content))
+            width, height = img.size
+        except Exception:
+            width, height = 700, 700
+        cx, cy = width / 2, height / 2
+        r = 50  # rayon par défaut
+        cercle_nerf = {
+            "type": "circle",
+            "xref": "x", "yref": "y",
+            "x0": cx - r, "y0": cy - r,
+            "x1": cx + r, "y1": cy + r,
+            "line": {"color": "white", "width": 2, "dash": "dot"},
+            "customdata": "nerf optique",
+            "customid": 1,
+            "editable": True,
+            "layer": "above"
+        }
+        stored_shapes = [cercle_nerf]
         summary = générer_resume(stored_shapes)
         return stored_shapes, summary, new_upload
 
-    # Réinitialisation des annotations
+    # ----------- RESET -----------
     elif trigger == "reset-button":
         new_upload = [
             dcc.Upload(
@@ -409,7 +512,60 @@ def update_shapes_combined(relayout_data, reset_clicks, classify_clicks, upload_
         ]
         return [], "Annotations réinitialisées.", new_upload
 
-    # Traitement d'une classification
+    # ----------- IMPORT JSON -----------
+    elif trigger == "upload-annotations" and upload_contents:
+        content_type, content_string = upload_contents.split(',')
+        decoded = base64.b64decode(content_string)
+        try:
+            new_annotations = json.loads(decoded.decode('utf-8'))
+        except Exception:
+            new_annotations = []
+        # On REMPLACE toutes les anciennes annotations
+        stored_shapes = []
+        for i, shape in enumerate(new_annotations):
+            if "customid" not in shape:
+                shape["customid"] = i + 1
+            stored_shapes.append(shape)
+        summary = générer_resume(stored_shapes)
+        return stored_shapes, summary, new_upload
+
+    # ----------- AJOUT NERF OPTIQUE À LA DEMANDE -----------
+    elif trigger == "add-nerf-optique-button":
+        # On ne doit ajouter le nerf optique que s'il n'existe pas déjà
+        if file_val:
+            try:
+                image_url = get_image_url(file_val)
+                response = requests.get(image_url)
+                img = Image.open(io_buffer.BytesIO(response.content))
+                width, height = img.size
+            except Exception:
+                width, height = 700, 700
+        else:
+            width, height = 700, 700
+        cx, cy = width / 2, height / 2
+        r = 50  # rayon par défaut
+        # Vérifie si une zone "nerf optique" existe déjà
+        already_nerf = any(
+            (s.get("customdata", "") == "nerf optique" or s.get("customid", 0) == 1)
+            for s in stored_shapes
+        )
+        if not already_nerf:
+            cercle_nerf = {
+                "type": "circle",
+                "xref": "x", "yref": "y",
+                "x0": cx - r, "y0": cy - r,
+                "x1": cx + r, "y1": cy + r,
+                "line": {"color": "white", "width": 2, "dash": "dot"},
+                "customdata": "nerf optique",
+                "customid": 1,
+                "editable": True,
+                "layer": "above"
+            }
+            stored_shapes = [cercle_nerf] + stored_shapes
+        summary = générer_resume(stored_shapes)
+        return stored_shapes, summary, new_upload
+
+    # ----------- CLASSIFICATION -----------
     elif isinstance(trigger, dict) and trigger.get("type") == "classify-button":
         label = trigger["index"]
         if selected_zone is not None and selected_zone < len(stored_shapes):
@@ -417,47 +573,46 @@ def update_shapes_combined(relayout_data, reset_clicks, classify_clicks, upload_
         elif stored_shapes:
             stored_shapes[-1]["customdata"] = label
 
-    # Traitement de la modification/dessin de formes
+    # ----------- DESSIN / MODIF FORME -----------
     elif relayout_data:
         if "shapes" in relayout_data:
             new_shapes = relayout_data["shapes"]
             updated_shapes = []
             for i, new_shape in enumerate(new_shapes):
-                valid_shape = {k: v for k, v in new_shape.items() if k not in ["customdata", "customid"]}
-                if i < len(stored_shapes):
-                    valid_shape["customdata"] = stored_shapes[i].get("customdata", "Tache")
-                else:
-                    valid_shape["customdata"] = "Tache"
-                if "customid" not in valid_shape:
-                    valid_shape["customid"] = len(stored_shapes) + 1
-                updated_shapes.append(valid_shape)
+                valid = {k: v for k, v in new_shape.items() if k not in ["customdata", "customid"]}
+                valid["customdata"] = stored_shapes[i].get("customdata", "Tache") if i < len(stored_shapes) else "Tache"
+                if "customid" not in valid:
+                    valid["customid"] = len(stored_shapes) + 1
+                updated_shapes.append(valid)
             stored_shapes = updated_shapes
         else:
-            for key, value in relayout_data.items():
-                if key.startswith("shapes[") and ".customdata" in key:
-                    continue
-                match = re.match(r"shapes\[(\d+)\]\.(\w+)", key)
-                if match:
-                    index = int(match.group(1))
-                    prop = match.group(2)
-                    if index < len(stored_shapes):
-                        stored_shapes[index][prop] = value
+            import re
+            for key, val in relayout_data.items():
+                m = re.match(r"shapes\[(\d+)\]\.(\w+)", key)
+                if m:
+                    idx, prop = int(m.group(1)), m.group(2)
+                    if idx < len(stored_shapes):
+                        stored_shapes[idx][prop] = val
 
+    # ----------- PAR DÉFAUT : REFRESH -----------
     summary = générer_resume(stored_shapes)
     return stored_shapes, summary, new_upload
 
 def générer_resume(shapes):
     areas = []
     for i, shape in enumerate(shapes):
-        path_str = shape.get("path", "")
-        matches = re.findall(r"[-+]?\d*\.\d+|\d+", path_str)
-        try:
-            coords = [(float(matches[j]), float(matches[j + 1])) for j in range(0, len(matches), 2)]
-            area = calculate_area(coords)
-            lab = shape.get("customdata", "Tache")
-            areas.append(f"Zone {i + 1} : {area:.2f} pixels² ({lab})")
-        except Exception as e:
-            areas.append(f"Zone {i + 1} : erreur ({e})")
+        lab = shape.get("customdata", "Tache")
+        if shape.get("type") == "circle":
+            coords = circle_to_coords(shape)
+        else:
+            path_str = shape.get("path", "")
+            matches = re.findall(r"[-+]?\d*\.\d+|\d+", path_str)
+            try:
+                coords = [(float(matches[j]), float(matches[j + 1])) for j in range(0, len(matches), 2)]
+            except Exception:
+                coords = []
+        area = calculate_area(coords) if coords else 0
+        areas.append(f"Zone {i + 1} : {area:.2f} pixels² ({lab})")
     return dbc.Card(
         [
             dbc.CardHeader("Résumé des zones annotées :"),
