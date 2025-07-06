@@ -1449,7 +1449,7 @@ def generate_comparison_summary(shapes_left, shapes_right, patient_infos=None):
     ]) if growth_txt else None
 
     return dbc.Card([
-        dbc.CardHeader("Synthèse de l'évolutions"),
+        dbc.CardHeader("Synthèse de l'évolution"),
         dbc.CardBody([
             table,
             dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "240px", "marginBottom": "6px"}),
