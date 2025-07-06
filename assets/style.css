@@ -9,7 +9,6 @@ body {
     margin: 10px auto;
     background-color: #dfe6e9;  /* Fond légèrement plus sombre que le body */
     border: 1px solid #cccccc;
-    border-radius: 10px;
     padding: 15px;
     display: flex;
     justify-content: space-between;
@@ -127,12 +126,7 @@ h3 {
 }
 
 .logo-container {
-    border: 1px solid #cccccc;  /* La couleur ici est le même gris foncé utilisé pour le texte */
-    border-radius: 8px;         /* Bords arrondis pour rester dans un design moderne */
-    padding: 10px;
-    width: 100%; /* Un petit padding pour aérer le contenu */
-    display: inline-block;      /* Pour que l'encadré ne prenne que la largeur nécessaire */
-    margin-bottom: 15px;        /* Un écart par rapport aux éléments suivants */
+    width: 100%;
     background-color: #ecf0f1;
     text-align: center;
 }
@@ -151,4 +145,29 @@ h3 {
     text-align: left;
     font-size: 14px;
     margin-left: 15px;
+}
+
+.rc-slider-mark {
+    display: none !important;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #pdf-report-section, #pdf-report-section * {
+    visibility: visible !important;
+  }
+  #pdf-report-section {
+    position: absolute !important;
+    left: 0; top: 0; width: 100vw; background: #fff;
+  }
+  #pdf-report-content {
+    display: block !important;
+    position: absolute !important;
+    left: 0; top: 0; width: 100vw;
+    background: #fff;
+    z-index: 99999;
+    visibility: visible !important;
+  }
 }
