@@ -1,7 +1,7 @@
 # FundusTracker
 
-**FundusTracker** is a web-based tool for semi-automatic and manual annotation of retinal lesions,
-initially developed for Birdshot chorioretinopathy.
+**FundusTracker** is a web-based tool for semi-automatic and manual annotation of retinal lesions,  
+initially developed for Birdshot chorioretinopathy research.
 
 ## License
 
@@ -9,8 +9,10 @@ FundusTracker is released under the [GNU General Public License v2.0](https://ww
 
 ## Authors
 
-FundusTracker was developed by **Thomas Foulonneau** and **Aliénor Vienne-Jumeau**  
-as part of a doctoral research project at Université Paris Cité and AP-HP.
+FundusTracker was developed by **Thomas Foulonneau**,  
+as part of a doctoral research project at Université Paris Cité.
+
+Scientific supervision and clinical guidance were provided by **Dr. Aliénor Vienne-Jumeau (AP-HP)**.
 
 ## Citation Required
 
@@ -21,9 +23,8 @@ If you use this software, please cite:
 ## Commercial Use
 
 Any commercial or clinical use of this software must comply with the terms of the GPL v2.0 license.  
-For proprietary licensing or integration, please contact the authors.
+For proprietary licensing or integration, please contact the author.
 
 ## Contact
 
 - Thomas Foulonneau — thomas-foulonneau@hotmail.fr
-
