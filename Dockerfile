@@ -1,14 +1,17 @@
-FROM python:3.9.13
+FROM python:3.9.13-slim
 
-Copy local code to the container image.
-ENV APP_HOME /app
+# Définir le répertoire de travail
+ENV APP_HOME=/app
 WORKDIR $APP_HOME
+
+# Copier les fichiers dans le conteneur
 COPY . ./
 
-Install production dependencies.
-RUN pip install -r requirements.txt
+# Installer les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
 
-EXPOSE 8080
+# Exposer le port utilisé par Dash
+EXPOSE 8050
 
-CMD python main .py
-
+# Lancer l'application
+CMD ["python", "main.py"]
