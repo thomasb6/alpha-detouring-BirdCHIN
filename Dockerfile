@@ -1,17 +1,27 @@
 FROM python:3.9.13-slim
 
-# Définir le répertoire de travail
+# Installer les dépendances système nécessaires (compilateur, librairies Cairo)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libcairo2-dev \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Définir le dossier de travail
 ENV APP_HOME=/app
 WORKDIR $APP_HOME
 
-# Copier les fichiers dans le conteneur
+# Copier le code dans l’image
 COPY . ./
 
-# Installer les dépendances
+# Installer les dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Exposer le port utilisé par Dash
-EXPOSE 8050
+EXPOSE 8080
 
-# Lancer l'application
 CMD ["python", "main.py"]
