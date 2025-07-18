@@ -110,18 +110,47 @@ def transform_shape(shape, zoom, rotation_deg, center):
             s["path"] = path
     return s
 
-def get_filenames():
+def get_filenames(path=FOLDER_PATH):
+    """
+    Récupère récursivement la liste des fichiers images dans un dossier GitHub, y compris les sous-dossiers.
+
+    Args:
+        path (str): Le chemin relatif dans le dépôt GitHub.
+
+    Returns:
+        list: Liste des chemins relatifs vers les fichiers images.
+    """
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
-    response = requests.get(GITHUB_API_URL, headers=headers)
-    if response.status_code == 200:
-        return [file["name"] for file in response.json() if file["type"] == "file"]
-    return []
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        return []
 
-def get_image_url(filename):
-    return f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{FOLDER_PATH}/{filename}"
+    items = response.json()
+    filenames = []
+    for item in items:
+        if item["type"] == "file":
+            filenames.append(item["path"])  # on garde le chemin relatif
+        elif item["type"] == "dir":
+            filenames.extend(get_filenames(item["path"]))  # récursif
+    return filenames
+
+
+def get_image_url(filepath):
+    """
+    Construit l'URL brute vers une image GitHub à partir du chemin complet.
+
+    Args:
+        filepath (str): Le chemin relatif depuis la racine du dépôt.
+
+    Returns:
+        str: L'URL GitHub brute de l'image.
+    """
+    return f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{filepath}"
+
 
 def calculate_area(coords):
     if len(coords) < 3:
@@ -286,7 +315,7 @@ def layout_manuelle():
                 html.P("Choisir une image :"),
                 dcc.Dropdown(
                     id='file-dropdown',
-                    options=[{'label': f, 'value': f} for f in filenames],
+                    options=[{'label': f.split('/')[-1], 'value': f} for f in filenames],  # label court
                     placeholder='Choisissez une image depuis GitHub'
                 ),
                 html.Div("Ou chargez une image locale :", style={"marginTop": "12px"}),
@@ -1646,4 +1675,4 @@ def set_uploaded_image(contents, dropdown_value):
 # POINT D'ENTRÉE DE L'APPLICATION
 # ====================================================
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(host="0.0.0.0", port=8080, debug=False)
