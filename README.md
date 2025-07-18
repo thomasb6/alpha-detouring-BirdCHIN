@@ -1,7 +1,6 @@
 # FundusTracker
 
-**FundusTracker** is a web-based tool for semi-automatic and manual annotation of retinal lesions,  
-initially developed for Birdshot chorioretinopathy research.
+**FundusTracker** is a web-based tool for semi-automatic and manual annotation of retinal lesions
 
 ## License
 
