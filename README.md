@@ -17,7 +17,7 @@ Scientific supervision and clinical guidance were provided by **Dr. Aliénor Vie
 
 If you use this software, please cite:
 
-> Foulonneau T., Vienne-Jumeau A. *FundusTracker*, 2025. https://github.com/thomasb6/alpha-detouring-BirdCHIN
+> Foulonneau T., Vienne-Jumeau A. *FundusTracker*, 2025. https://github.com/thomasb6/FundusTracker/
 
 ## Commercial Use
 
