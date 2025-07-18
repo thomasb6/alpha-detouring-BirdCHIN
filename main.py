@@ -26,7 +26,7 @@ from sklearn.ensemble import RandomForestClassifier
 # ====================================================
 REPO_OWNER = "thomasb6"
 REPO_NAME = "alpha-detouring-BirdCHIN"
-FOLDER_PATH = "cropped"
+FOLDER_PATH = "exemples"
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FOLDER_PATH}"
 GITHUB_TOKEN = "ghp_nwTO1ndY???????????rsxh9HxEJKi2QiZNDWGCSX?3?z?U?g?NP"
 GITHUB_TOKEN = GITHUB_TOKEN.replace("?", "")
