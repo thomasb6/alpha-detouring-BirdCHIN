@@ -315,8 +315,8 @@ def layout_manuelle():
                 html.P("Choisir une image :"),
                 dcc.Dropdown(
                     id='file-dropdown',
-                    options=[{'label': f.split('/')[-1], 'value': f} for f in filenames],  # label court
-                    placeholder='Choisissez une image depuis GitHub'
+                    options=[{'label': f.split('/')[-1], 'value': f} for f in filenames], 
+                    placeholder='Choisissez une image'
                 ),
                 html.Div("Ou chargez une image locale :", style={"marginTop": "12px"}),
                 dcc.Upload(
@@ -491,7 +491,7 @@ def layout_ml():
             html.P("Choix de l'image :"),
             dcc.Dropdown(
                 id='ml-file-dropdown',
-                options=[{'label': f, 'value': f} for f in filenames],
+                options=[{'label': f.split('/')[-1], 'value': f} for f in filenames],
                 placeholder="Choisissez une image"
             ),
             html.P("Pinceau/étiquette :"),
